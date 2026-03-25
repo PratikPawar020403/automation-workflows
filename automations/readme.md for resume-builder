@@ -35,7 +35,7 @@ HTML Resume Output
 ## Setup
 
 1. Import the workflow JSON into n8n
-2. Add your API key in the HTTP Request node
+2. Add your API key 
 3. Update the profile inside the Code node
 4. Activate the workflow
 
