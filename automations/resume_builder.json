@@ -12,24 +12,18 @@
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1.1,
-      "position": [
-        -440,
-        -180
-      ],
+      "position": [-440, -180],
       "webhookId": "07591ad5-e99c-486e-afd5-cf456e1ee000"
     },
     {
       "parameters": {
-        "jsCode": "const body = $('Webhook').first().json.body;\nconst company_name = body.company_name;\nconst job_description = body.job_description;\n\nconst profile = {\nname: \"Pratik S Pawar\",\nemail: \"pratikpawar0222@gmail.com\",\nphone: \"+91-8928260115\",\nlinkedin: \"linkedin.com/in/pratikspawar\",\ngithub: \"github.com/PratikPawar020403\",\nportfolio: \"psp-02-portfolio.netlify.app\",\nportfolio_2: \"my-phone-portfolio.netlify.app\",\nlocation: \"Mumbai, Maharashtra, India\",\n\neducation: [\n{\ndegree: \"M.Sc. Information Technology\",\ninstitution: \"Ramnarain Ruia Autonomous College, Mumbai\",\nduration: \"2024 - 2026\",\ngpa: \"Expected Apr 2026\"\n},\n{\ndegree: \"B.Sc. Computer Science\",\ninstitution: \"V.P.M's R.Z. Shah College, Mulund\",\nduration: \"2020 - 2023\",\ngpa: \"7.75 / 10\"\n}\n],\n\nprojects: [\n{\nname: \"CardioInsight - Cardiovascular Risk Assessment System\",\ntech_stack: \"Python, Streamlit, Scikit-Learn, XGBoost, SHAP, Pandas, NumPy, Plotly\",\nproblem_solution: {\nproblem: \"Assess cardiovascular disease risk using both lifestyle and clinical indicators.\",\nsolution: \"Built an explainable ML system with dual pipelines (lifestyle and clinical models) and integrated SHAP interpretability to provide transparent cardiovascular risk assessment.\"\n},\nsystem_architecture: \"User Inputs -> Feature Processing -> ML Models -> SHAP Explainability -> Risk Dashboard\",\nmetrics: {\nlifestyle_model_auc: \"0.79 ROC-AUC\",\nclinical_model_auc: \"0.94 ROC-AUC\"\n},\ndescription: \"Explainable ML system predicting cardiovascular risk.\",\nhighlights: [\n\"Built dual ML pipelines for lifestyle and clinical risk prediction\",\n\"Integrated SHAP for model interpretability\",\n\"Developed interactive Streamlit dashboard\"\n]\n},\n{\n  name: \"AI Voice Detection System\",\n  tech_stack: \"Python, FastAPI, Random Forest, DSP Audio Features, Gradio\",\n  problem_solution: {\n  problem: \"AI-generated voices are increasingly difficult to distinguish from real human speech.\",\n  solution: \"Developed a machine learning system using DSP acoustic features and a Random Forest classifier to detect AI-generated voice samples.\"\n  },\n  system_architecture: \"Audio Input -> DSP Feature Extraction -> Random Forest Classifier -> API Response\",\n  metrics: {\n    accuracy: \"95.7%\"\n  },\n  description: \"Machine learning API detecting AI-generated voice samples.\",\n  highlights: [\n    \"Extracted 37 DSP acoustic features\",\n    \"Built FastAPI inference API\",\n    \"Supports 5 languages\"\n  ]\n},\n\n{\n  name: \"Legal-Sakha - Indian Legal AI Assistant\",\n  tech_stack: \"Gemma LLM, FAISS, BGE Embeddings, Gradio, Python\",\n  problem_solution: {\n  problem: \"Legal documents in India are complex and difficult for the general public to search and understand.\",\n  solution: \"Built a RAG-based legal AI assistant that performs semantic search over indexed legal documents and generates answers using an LLM.\"\n  },\n  system_architecture: \"User Query -> Embeddings -> FAISS Vector Search -> LLM Response -> Gradio UI\",\n  description: \"RAG-based AI assistant answering queries about Indian legal documents.\",\n  highlights: [\n    \"Indexed 40+ legal documents\",\n    \"Implemented semantic search using FAISS\",\n    \"Built conversational legal assistant interface\"\n  ]\n},\n\n{\n  name: \"PotholeSahayak - Road Damage Detection\",\n  tech_stack: \"Python, YOLOv8, OpenCV, Streamlit\",\n  problem_solution: {\n  problem: \"Manual road inspection for potholes is slow and inefficient.\",\n  solution: \"Developed a computer vision system using YOLOv8 to automatically detect potholes from images and videos.\"\n  },\n  system_architecture: \"Image/Video Input -> YOLOv8 Detection -> Bounding Box Prediction -> Streamlit UI\",\n  metrics: {\n    precision: \"0.735\",\n    recall: \"0.647\",\n    mAP50: \"0.732\"\n  },\n  description: \"Computer vision system detecting potholes using YOLOv8.\",\n  highlights: [\n    \"Implemented YOLOv8 object detection\",\n    \"Built real-time inference dashboard\",\n    \"Supports image and video analysis\"\n  ]\n},\n\n{\n  name: \"LungCheck - Lung Cancer Risk Prediction\",\n  tech_stack: \"Python, Streamlit, Scikit-Learn, Pandas\",\n  problem_solution: {\n  problem: \"Early lung cancer risk detection tools are not easily accessible.\",\n  solution: \"Built an ML-based web application that predicts lung cancer risk from health indicators using a predictive ML pipeline.\"\n  },\n  system_architecture: \"User Inputs -> Feature Processing -> ML Pipeline -> Risk Prediction\",\n  metrics: {\n    accuracy: \"87.5%\"\n  },\n  description: \"ML-based web application predicting lung cancer risk.\",\n  highlights: [\n    \"Built predictive ML pipeline\",\n    \"Developed Streamlit dashboard\",\n    \"Added exploratory data analysis module\"\n  ]\n},\n\n{\n  name: \"TreaQi - AQI Prediction Platform\",\n  tech_stack: \"Python, Streamlit, Scikit-Learn, Pandas, NumPy, Plotly\",\n  problem_solution: {\n  problem: \"Air quality prediction and environmental planning tools are limited for everyday users.\",\n  solution: \"Developed an ML-based AQI prediction platform with a tree recommendation engine to suggest pollution-resistant trees.\"\n  },\n  system_architecture: \"Environmental Inputs -> ML AQI Model -> Tree Recommendation Engine -> Dashboard\",\n  metrics: {\n    mae: \"0.09\",\n    mse: \"0.02\",\n    r_squared: \"0.98\"\n  },\n  description: \"Environmental analytics platform predicting AQI.\",\n  highlights: [\n    \"Implemented ML-based AQI prediction\",\n    \"Developed tree recommendation system\",\n    \"Built data visualization dashboard\"\n  ]\n},\n\n{\n  name: \"India Population Dashboard\",\n  tech_stack: \"Python, Streamlit, Pandas, Plotly\",\n  problem_solution: {\n  problem: \"Population data across Indian states is difficult to analyze interactively.\",\n  solution: \"Built an interactive data dashboard visualizing population trends using maps and time-series charts.\"\n  },\n  system_architecture: \"Dataset -> Data Processing -> Visualization Dashboard\",\n  description: \"Interactive dashboard exploring India's population data.\",\n  highlights: [\n    \"Implemented choropleth maps\",\n    \"Created time-series population trends\"\n  ]\n},\n\n{\n  name: \"Indian Unicorn Startups Dashboard\",\n  tech_stack: \"Python, Streamlit, Pandas, Plotly\",\n  problem_solution: {\n  problem: \"Startup ecosystem data is scattered and hard to analyze for trends.\",\n  solution: \"Developed an analytics dashboard visualizing sector, location, and valuation trends among Indian unicorn startups.\"\n  },\n  system_architecture: \"Startup Dataset -> Data Processing -> Visualization Dashboard\",\n  description: \"Interactive analytics dashboard exploring startup ecosystem trends.\",\n  highlights: [\n    \"Built sector and location filters\",\n    \"Created valuation analytics visualizations\"\n  ]\n},\n\n{\n  name: \"PSP Portfolio Website\",\n  tech_stack: \"React, Vite, TypeScript, Tailwind CSS, Supabase\",\n  problem_solution: {\n  problem: \"Developers need a professional way to showcase projects and skills.\",\n  solution: \"Built a modern responsive developer portfolio with project filtering and animations.\"\n  },\n  system_architecture: \"React Frontend -> Supabase Backend -> Netlify Deployment\",\n  description: \"Modern developer portfolio.\",\n  highlights: [\n    \"Built responsive portfolio\",\n    \"Implemented project filtering and animations\"\n  ]\n},\n\n{\n  name: \"My-Phone - PhoneOS Portfolio\",\n  tech_stack: \"React, Vite, TypeScript, Tailwind CSS\",\n  problem_solution: {\n  problem: \"Traditional portfolios lack immersive user experience.\",\n  solution: \"Designed a portfolio interface that mimics a smartphone operating system with app-style navigation.\"\n  },\n  system_architecture: \"React UI -> App-style Components -> Portfolio Content\",\n  description: \"Portfolio designed as a smartphone operating system.\",\n  highlights: [\n    \"Implemented OS-style interface\",\n    \"Added dynamic theme switching\"\n  ]\n},\n\n{\n  name: \"Ani-Realm - 3D Anime Discovery\",\n  tech_stack: \"JavaScript, Three.js, Tailwind CSS, AniList API\",\n  problem_solution: {\n  problem: \"Anime discovery platforms typically use basic list-based browsing.\",\n  solution: \"Developed a 3D anime discovery interface using WebGL rendering integrated with the AniList API.\"\n  },\n  system_architecture: \"Anime API -> WebGL Rendering -> 3D Interface\",\n  description: \"3D anime discovery platform.\",\n  highlights: [\n    \"Built WebGL anime browsing interface\",\n    \"Integrated AniList API\"\n  ]\n},\n\n{\n  name: \"FitFocus - Fitness Dashboard\",\n  tech_stack: \"React, Vite, TypeScript, Tailwind CSS\",\n  problem_solution: {\n  problem: \"People struggle to calculate and track key health metrics easily.\",\n  solution: \"Developed a fitness dashboard with calculators for BMI, BMR, and TDEE.\"\n  },\n  system_architecture: \"User Inputs -> Health Calculations -> Dashboard Visualization\",\n  description: \"Fitness dashboard with health calculators.\",\n  highlights: [\n    \"Implemented BMI/BMR/TDEE calculators\",\n    \"Built responsive health dashboard\"\n  ]\n},\n\n{\n  name: \"Interactive Academic Notebook\",\n  tech_stack: \"React, TypeScript, react-pageflip\",\n  problem_solution: {\n  problem: \"Academic journeys are often presented in static formats.\",\n  solution: \"Built an interactive notebook-style interface using page-flip animations to present academic milestones.\"\n  },\n  system_architecture: \"React Components -> Pageflip Animation -> Notebook Interface\",\n  description: \"Interactive academic notebook.\",\n  highlights: [\n    \"Implemented page flip animation\",\n    \"Designed book-style academic presentation\"\n  ]\n},\n\n{\n  name: \"Privacy Guard - Document Protection Extension\",\n  tech_stack: \"JavaScript, HTML, CSS, Chrome Extension API\",\n  problem_solution: {\n  problem: \"Users often accidentally share sensitive documents such as Aadhaar or PAN online.\",\n  solution: \"Developed a Chrome extension that detects sensitive Indian documents in web forms and provides real-time alerts.\"\n  },\n  system_architecture: \"Web Form Input -> Sensitive Data Detection -> Alert System\",\n  description: \"Chrome extension detecting sensitive data.\",\n  highlights: [\n    \"Detects Aadhaar, PAN, UPI and banking details\",\n    \"Implements real-time alerts\"\n  ]\n},\n\n{\n  name: \"Advanced Keylogger with HTML Email Reporting\",\n  tech_stack: \"Python, SMTP, System Monitoring\",\n  problem_solution: {\n  problem: \"Students learning cybersecurity need practical demonstrations of monitoring techniques.\",\n  solution: \"Developed an educational cybersecurity project demonstrating keystroke logging, screenshots, and automated HTML email reporting.\"\n  },\n  system_architecture: \"Keyboard Input -> Logging Engine -> Screenshot Capture -> Email Reporting\",\n  description: \"Cybersecurity research project demonstrating keystroke monitoring.\",\n  highlights: [\n    \"Captured keystrokes with timestamps\",\n    \"Generated HTML email reports\"\n  ]\n}\n],\n\ntechnical_skills: {\nlanguages: [\"Python\", \"JavaScript\", \"TypeScript\", \"SQL\", \"HTML\", \"CSS\"],\nai_ml: [\n  \"Scikit-Learn\",\n  \"XGBoost\",\n  \"Random Forest\",\n  \"YOLOv8\",\n  \"SHAP\",\n  \"RAG\",\n  \"FAISS\",\n  \"LLM Integration\",\n  \"DSP Feature Engineering\"\n],\n\nframeworks: [\n  \"React\",\n  \"FastAPI\",\n  \"Streamlit\",\n  \"Vite\"\n],\n\ndata_tools: [\n  \"Pandas\",\n  \"NumPy\",\n  \"Plotly\",\n  \"Matplotlib\",\n  \"Seaborn\"\n],\n\ncloud_platforms: [\n  \"Netlify\",\n  \"Hugging Face\",\n  \"Google Colab\",\n  \"Kaggle\"\n],\n\ndeveloper_tools: [\n  \"Git\",\n  \"Docker\",\n  \"Figma\",\n  \"Power BI\",\n  \"Supabase\"\n]\n},\n\nsoft_skills: [\n\"Problem Solving\",\n\"Analytical Thinking\",\n\"Communication\",\n\"Team Collaboration\",\n\"Research Mindset\"\n],\n\ncertifications: [\n{ name: \"AI Paradigm Shift\", issuer: \"Patkar-Varde College\", year: \"2024\" },\n{ name: \"GENAI 101\", issuer: \"Pieces\", year: \"2024\" },\n{ name: \"Machine Learning Certificate\", issuer: \"Techfest IIT Bombay & AWS\", year: \"2024\" },\n{ name: \"Blockchain Bootcamp\", issuer: \"LetsUpgrade & NSDC\", year: \"2024\" },\n{ name: \"Freedom with AI Masterclass\", issuer: \"Freedom with AI\", year: \"2024\" },\n{ name: \"Solutions Architecture\", issuer: \"AWS & Forage\", year: \"2024\" },\n{ name: \"India AI Impact Buildathon\", issuer: \"Guvi & HCL\", year: \"2026\" },\n{ name: \"Machine Learning with Python\", issuer: \"LetsUpgrade & NSDC\", year: \"2024\" },\n{ name: \"Cyber Security Workshop\", issuer: \"Encryptec Cyber Guards\", year: \"2024\" },\n{ name: \"Generative AI Mastermind\", issuer: \"Outskill\", year: \"2024\" },\n{ name: \"Prompt Engineering Bootcamp\", issuer: \"LetsUpgrade\", year: \"2024\" },\n{ name: \"Build Your Own ChatGPT with Open Source\", issuer: \"LetsUpgrade\", year: \"2025\" },\n{ name: \"Cybersecurity Job Simulation\", issuer: \"Forage & Mastercard\", year: \"2024\" }\n]\n};\n\nconst prompt = 'You are a professional ATS resume writer. Create a complete tailored ATS-optimized resume as a single clean HTML file.\\n\\nCANDIDATE PROFILE:\\n' + JSON.stringify(profile, null, 2) + '\\n\\nTARGET COMPANY: ' + company_name + '\\n\\nJOB DESCRIPTION:\\n' + job_description + '\\n\\nINSTRUCTIONS:\\n1. FIXED SECTIONS - copy exactly: name, email, phone, linkedin, github, portfolio, location, education\\n2. PROFESSIONAL SUMMARY: Write 3-4 sharp sentences tailored to ' + company_name + ' and this JD.\\n3. SKILLS: Pick only relevant technical and soft skills matching this JD. Group as Technical Skills and Soft Skills.\\n4. PROJECTS: Pick the 4 most relevant projects. Rewrite bullets to emphasize JD-matching aspects. Use strong action verbs.\\n5. CERTIFICATIONS: Include only 4 certifications relevant to this role.\\n6. ATS RULES: Single column only. No images no icons. Standard section names: Summary Skills Projects Certifications Education. JD keywords must appear naturally throughout.\\n\\nHTML CSS REQUIREMENTS:\\nFont Arial sans-serif. Body 11.5px line-height 1.6. Max-width 780px margin auto padding 40px. Name 24px bold centered. Contact line 11px centered separated by pipe symbol. Section headers 12px bold uppercase letter-spacing 1px border-bottom 1.5px solid #222 margin-top 20px. Background white text #1a1a1a. Include media print. All in one HTML file with CSS in style tag.\\n\\nOUTPUT: Return ONLY raw HTML starting with <!DOCTYPE html>. No markdown no backticks no explanation.';\n\nreturn [{ json: { prompt, company_name } }];"
+        "jsCode": "const body = $('Webhook').first().json.body;\nconst company_name = body.company_name;\nconst job_description = body.job_description;\n\nconst profile = {\nname: \"Your Name\",\nemail: \"your-email@example.com\",\nphone: \"+XX-XXXXXXXXXX\",\nlinkedin: \"linkedin.com/in/your-profile\",\ngithub: \"github.com/your-username\",\nportfolio: \"your-portfolio.com\",\nportfolio_2: \"your-secondary-portfolio.com\",\nlocation: \"Your City, Country\",\n\neducation: [\n{\ndegree: \"Your Degree\",\ninstitution: \"Your Institution\",\nduration: \"Start - End\",\ngpa: \"Your GPA / Result\"\n}\n],\n\nprojects: [\n{\nname: \"Project Title\",\ntech_stack: \"Tools / Methods Used\",\nproblem_solution: {\nproblem: \"Describe the problem\",\nsolution: \"Describe your solution\"\n},\nsystem_architecture: \"High-level workflow\",\nmetrics: {\nmetric: \"value\"\n},\ndescription: \"Short project description\",\nhighlights: [\n\"Key achievement\",\n\"Another highlight\"\n]\n}\n],\n\ntechnical_skills: {\nskills: []\n},\n\nsoft_skills: [],\n\ncertifications: [\n{\nname: \"Certification Title\",\nissuer: \"Issuing Organization\",\nyear: \"YYYY\"\n}\n]\n};\n\nconst prompt = 'You are a professional ATS resume writer. Create a complete tailored ATS-optimized resume as a single clean HTML file.\\n\\nCANDIDATE PROFILE:\\n' + JSON.stringify(profile, null, 2) + '\\n\\nTARGET COMPANY: ' + company_name + '\\n\\nJOB DESCRIPTION:\\n' + job_description + '\\n\\nINSTRUCTIONS:\\n1. FIXED SECTIONS - copy exactly: name, email, phone, linkedin, github, portfolio, location, education\\n2. PROFESSIONAL SUMMARY: Write 3-4 sharp sentences tailored to ' + company_name + ' and this JD.\\n3. SKILLS: Pick only relevant skills matching this JD. Group as Technical Skills and Soft Skills.\\n4. PROJECTS: Pick the most relevant projects. Rewrite bullets to emphasize JD-matching aspects. Use strong action verbs.\\n5. CERTIFICATIONS: Include only relevant certifications for this role.\\n6. ATS RULES: Single column only. No images no icons. Standard section names: Summary Skills Projects Certifications Education. JD keywords must appear naturally throughout.\\n\\nHTML CSS REQUIREMENTS:\\nFont Arial sans-serif. Body 11.5px line-height 1.6. Max-width 780px margin auto padding 40px. Name 24px bold centered. Contact line 11px centered separated by pipe symbol. Section headers 12px bold uppercase letter-spacing 1px border-bottom 1.5px solid #222 margin-top 20px. Background white text #1a1a1a. Include media print. All in one HTML file with CSS in style tag.\\n\\nOUTPUT: Return ONLY raw HTML starting with <!DOCTYPE html>. No markdown no backticks no explanation.';\n\nreturn [{ json: { prompt, company_name } }];"
       },
       "id": "3381a2f1-f31f-4f6a-9149-539afb55d6ae",
       "name": "Build Prompt",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        -220,
-        -180
-      ]
+      "position": [-220, -180]
     },
     {
       "parameters": {
@@ -45,10 +39,7 @@
       "name": "Gemini API",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [
-        0,
-        -180
-      ]
+      "position": [0, -180]
     },
     {
       "parameters": {
@@ -58,10 +49,7 @@
       "name": "Extract HTML",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        220,
-        -180
-      ]
+      "position": [220, -180]
     },
     {
       "parameters": {
@@ -82,57 +70,22 @@
       "name": "Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [
-        440,
-        -180
-      ]
+      "position": [440, -180]
     }
   ],
   "pinData": {},
   "connections": {
     "Webhook": {
-      "main": [
-        [
-          {
-            "node": "Build Prompt",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "Build Prompt", "type": "main", "index": 0 }]]
     },
     "Build Prompt": {
-      "main": [
-        [
-          {
-            "node": "Gemini API",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "Gemini API", "type": "main", "index": 0 }]]
     },
     "Gemini API": {
-      "main": [
-        [
-          {
-            "node": "Extract HTML",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "Extract HTML", "type": "main", "index": 0 }]]
     },
     "Extract HTML": {
-      "main": [
-        [
-          {
-            "node": "Respond",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "Respond", "type": "main", "index": 0 }]]
     }
   },
   "active": true,
