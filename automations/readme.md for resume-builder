@@ -1,1 +1,66 @@
+# 🤖 Resume Generator — n8n Workflow
 
+Generates a tailored, ATS-optimized resume as a clean HTML file using a candidate profile and job description.
+
+---
+
+## Overview
+
+This workflow takes a job description as input, combines it with a predefined profile, and generates a role-specific resume.
+
+```
+POST /webhook/generate-resume
+        ↓
+Profile + Job Description
+        ↓
+Prompt Generation
+        ↓
+AI Processing
+        ↓
+HTML Resume Output
+```
+
+---
+
+## How It Works
+
+* Fixed details (name, contact, education) remain unchanged
+* Summary is generated based on the target role
+* Skills and projects are selected and tailored to the job description
+* Certifications are filtered for relevance
+* Output is a clean, ATS-friendly HTML resume
+
+---
+
+## Setup
+
+1. Import the workflow JSON into n8n
+2. Add your API key in the HTTP Request node
+3. Update the profile inside the Code node
+4. Activate the workflow
+
+---
+
+## Usage
+
+Send a POST request:
+
+```json
+{
+  "company_name": "Company",
+  "job_description": "Job description here..."
+}
+```
+
+The response returns a complete HTML resume.
+
+---
+
+## Output
+
+* HTML resume (single file)
+* Ready for printing or PDF export
+
+---
+
+Simple, focused, and built for practical use.
