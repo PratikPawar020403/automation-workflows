@@ -59,6 +59,7 @@ The response returns a complete HTML resume.
 ## Output
 
 * HTML resume (single file)
+* Then copy that html code paste it into code editor , view it . 
 * Ready for printing or PDF export
 
 ---
