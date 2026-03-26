@@ -1,0 +1,182 @@
+{
+  "name": "read-papers",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "upload-paper",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "0cf693b1-4dfa-4bec-a485-ad07b40599fc",
+      "name": "📥 Receive PDF",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -120,
+        0
+      ],
+      "webhookId": "upload-paper-001"
+    },
+    {
+      "parameters": {
+        "jsCode": "const binaryData = $input.item.binary;\n\nif (!binaryData || Object.keys(binaryData).length === 0) {\n  throw new Error('No file received. Make sure you are sending the PDF as form-data in Postman with key type set to File.');\n}\n\n// Get whatever field name Postman used (data, file, etc.)\nconst fieldName = Object.keys(binaryData)[0];\nconst field = binaryData[fieldName];\n\nif (!field.data) {\n  throw new Error('Binary field found but has no data. Re-check your Postman setup.');\n}\n\nreturn [{\n  json: {\n    base64: field.data,\n    mimeType: field.mimeType || 'application/pdf',\n    fileName: field.fileName || 'paper.pdf'\n  }\n}];"
+      },
+      "id": "9679c801-b0fc-4ac7-8908-ca9c699eaf24",
+      "name": "📦 Extract Base64",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        120,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=add-your-own-key",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={\n  \"contents\": [{\n    \"parts\": [\n      {\n        \"inline_data\": {\n          \"mime_type\": \"{{ $json.mimeType }}\",\n          \"data\": \"{{ $json.base64 }}\"\n        }\n      },\n      {\n        \"text\": \"You are an expert AI research analyst. Analyze this AI research paper and return a structured digest using clean HTML only (use <h2>, <ul>, <li> tags).\\n\\nInclude exactly these 3 sections:\\n\\n<h2>🔬 Key Findings & Conclusions</h2>\\nCore results, contributions, and what the paper proves. Bullet points.\\n\\n<h2>⚠️ Limitations</h2>\\nWeaknesses, gaps, or constraints — acknowledged or evident. Bullet points.\\n\\n<h2>🚀 Possible Improvements</h2>\\nConcrete future directions, enhancements, or open problems. Bullet points.\\n\\nBe concise but insightful. HTML only, no markdown.\"\n      }\n    ]\n  }]\n}",
+        "options": {}
+      },
+      "id": "b0088ed1-5ad4-4fd0-870a-824b7df6c29d",
+      "name": "🤖 Gemini — Analyze Paper",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        360,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.item.json;\n\n// Extract Gemini's HTML summary\nconst summary = response.candidates?.[0]?.content?.parts?.[0]?.text;\n\nif (!summary) {\n  throw new Error('Gemini returned no content. Check your API key or PDF format.');\n}\n\n// Get paper filename from extract node\nconst paperName = $('📦 Extract Base64').item.json.fileName || 'AI Research Paper';\n\n// Build styled HTML email\nconst now = new Date();\nconst date = now.toLocaleDateString('en-US', {\n  weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'\n});\nconst time = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });\n\nconst emailHtml = `\n<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"UTF-8\">\n  <style>\n    * { box-sizing: border-box; margin: 0; padding: 0; }\n    body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f2f5; }\n    .wrapper { max-width: 680px; margin: 30px auto; }\n    .header { background: linear-gradient(135deg, #0f0c29, #302b63, #24243e); padding: 40px; border-radius: 12px 12px 0 0; }\n    .header h1 { color: #fff; font-size: 26px; font-weight: 700; letter-spacing: -0.5px; }\n    .header p { color: #a0aec0; font-size: 14px; margin-top: 6px; }\n    .badge { display: inline-flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.1); color: #e2e8f0; padding: 8px 16px; border-radius: 30px; font-size: 13px; font-weight: 600; margin-top: 16px; border: 1px solid rgba(255,255,255,0.15); }\n    .body { background: #fff; padding: 40px; }\n    .body h2 { font-size: 17px; font-weight: 700; margin: 28px 0 12px; padding: 10px 16px; border-radius: 8px; }\n    .body h2:nth-of-type(1) { background: #ebf8ff; border-left: 4px solid #3182ce; color: #2b6cb0; }\n    .body h2:nth-of-type(2) { background: #fff5f5; border-left: 4px solid #e53e3e; color: #c53030; }\n    .body h2:nth-of-type(3) { background: #f0fff4; border-left: 4px solid #38a169; color: #276749; }\n    .body ul { padding: 0 0 0 20px; }\n    .body li { color: #4a5568; font-size: 15px; line-height: 1.9; margin-bottom: 4px; }\n    .footer { background: #f7fafc; padding: 22px 40px; border-radius: 0 0 12px 12px; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }\n    .footer p { color: #a0aec0; font-size: 12px; }\n    .footer strong { color: #718096; }\n  </style>\n</head>\n<body>\n  <div class=\"wrapper\">\n    <div class=\"header\">\n      <h1>🧠 AI Paper Digest</h1>\n      <p>${date} at ${time}</p>\n      <div class=\"badge\">📄 ${paperName}</div>\n    </div>\n    <div class=\"body\">\n      ${summary}\n    </div>\n    <div class=\"footer\">\n      <p>Generated by your <strong>n8n AI Paper Digest</strong> 🤖</p>\n      <p><strong>Powered by Gemini</strong></p>\n    </div>\n  </div>\n</body>\n</html>`;\n\nreturn [{\n  json: {\n    html: emailHtml,\n    subject: `🧠 AI Digest: ${paperName}`,\n    paperName: paperName,\n    timestamp: now.toISOString()\n  }\n}];"
+      },
+      "id": "2be6aca1-d0ee-4671-b552-4473ace65abc",
+      "name": "🎨 Build Email HTML",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        620,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.resend.com/emails",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer add-your-own-resend-api-key"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={\n  \"from\": \"AI Digest <onboarding@resend.dev>\",\n  \"to\": [\"add-your-own-email@example.com\"],\n  \"subject\": {{ JSON.stringify($json.subject) }},\n  \"html\": {{ JSON.stringify($json.html) }}\n}",
+        "options": {}
+      },
+      "id": "cbdb8c35-6736-4ff9-9241-3f3b192221b3",
+      "name": "📧 Send via Resend",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"status\": \"success\",\n  \"message\": \"✅ Paper analyzed & email sent!\",\n  \"paper\": \"{{ $('🎨 Build Email HTML').item.json.paperName }}\",\n  \"emailId\": \"{{ $json.id }}\",\n  \"sentAt\": \"{{ $('🎨 Build Email HTML').item.json.timestamp }}\"\n}",
+        "options": {}
+      },
+      "id": "490b27f9-8921-4e9d-bd43-9ceb629914c2",
+      "name": "✅ Respond to Caller",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1140,
+        0
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "📥 Receive PDF": {
+      "main": [
+        [
+          {
+            "node": "📦 Extract Base64",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📦 Extract Base64": {
+      "main": [
+        [
+          {
+            "node": "🤖 Gemini — Analyze Paper",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🤖 Gemini — Analyze Paper": {
+      "main": [
+        [
+          {
+            "node": "🎨 Build Email HTML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🎨 Build Email HTML": {
+      "main": [
+        [
+          {
+            "node": "📧 Send via Resend",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📧 Send via Resend": {
+      "main": [
+        [
+          {
+            "node": "✅ Respond to Caller",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "d580ee5a-f41e-4b75-b785-e5260955737e",
+  "meta": {
+    "instanceId": "e06ef98fd9365ab0b3f81aa58a48d9e47e938f64633addeaa8f0be8df310b08f"
+  },
+  "id": "lZxqtU90tu7kSwut",
+  "tags": []
+}
