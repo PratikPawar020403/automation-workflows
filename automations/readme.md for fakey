@@ -34,7 +34,6 @@ Use this to test the workflow once it's active.
 
 ### 2. Body Parameters
 | Key | Type | Value | Description |
-| :--- | :--- | :--- | :--- |
 | **`data`** | **File** | `[Select Image]` | The image you want to analyze. |
 | **`caption`** | Text | "Staged photo on Mars" | (Optional) The user claim about the image. |
 | **`claimDate`** | Text | "2024-05-10" | (Optional) The date the image is claimed to be from. |
