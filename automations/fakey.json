@@ -1,0 +1,480 @@
+{
+    "name": "fakey",
+    "nodes": [
+        {
+            "parameters": {
+                "httpMethod": "POST",
+                "path": "check-image",
+                "responseMode": "responseNode",
+                "options": {}
+            },
+            "id": "2a0037d8-46b4-42a2-82ea-2f36d368ad0e",
+            "name": "📥 Receive Image + Claims",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 2,
+            "position": [
+                -3640,
+                -80
+            ],
+            "webhookId": "check-image-seq-v1"
+        },
+        {
+            "parameters": {
+                "jsCode": "// ── Extract binary + parse EXIF ──────────────────────────────────\nconst binaryData = $input.item.binary;\nconst body = $input.item.json;\n\nif (!binaryData || Object.keys(binaryData).length === 0) {\n  throw new Error('No image received. In Postman: Body → form-data → key \"data\" → type File.');\n}\n\nconst fieldName = Object.keys(binaryData)[0];\nconst field = binaryData[fieldName];\nif (!field.data) throw new Error('File received but has no data.');\n\nconst base64   = field.data;\nconst mimeType = field.mimeType || 'image/jpeg';\nconst fileName = field.fileName || 'image.jpg';\nconst caption   = body?.caption   || null;\nconst claimDate = body?.claimDate || null;\n\n// ── EXIF Parsing ─────────────────────────────────────────────────\nconst bytes = Buffer.from(base64, 'base64');\nlet exif = {\n  hasExif: false, fileType: 'Unknown',\n  dateTimeOriginal: null, modifyDate: null, wasEdited: false,\n  make: null, software: null, gpsFound: false\n};\n\nconst AI_TOOLS = [\n  'Stable Diffusion','Midjourney','DALL-E','DALL·E','Adobe Firefly',\n  'Canva','Runway','Pika','NovelAI','DreamStudio','ComfyUI','Automatic1111',\n  'Bing Image Creator'\n];\nconst CAMERAS = [\n  'Canon','Nikon','Sony','Apple','Samsung','Google','Huawei',\n  'OnePlus','Xiaomi','OPPO','Fujifilm','Panasonic','Leica','DJI','GoPro'\n];\n\ntry {\n  const isJpeg = bytes[0]===0xFF && bytes[1]===0xD8;\n  const isPng  = bytes[0]===0x89 && bytes[1]===0x50;\n\n  if (isJpeg) {\n    exif.fileType = 'JPEG';\n    const str = bytes.toString('binary');\n    const exifIdx = str.indexOf('Exif');\n    if (exifIdx !== -1) {\n      exif.hasExif = true;\n      const chunk = str.substring(exifIdx, exifIdx + 2048);\n      const printable = chunk.replace(/[^\\x20-\\x7E]/g,'|').split('|').filter(s=>s.length>=3);\n      const dates = chunk.match(/(\\d{4}):(\\d{2}):(\\d{2}) (\\d{2}):(\\d{2}):(\\d{2})/g) || [];\n      if (dates[0]) exif.dateTimeOriginal = dates[0].replace(/(\\d{4}):(\\d{2}):(\\d{2})/,'$1-$2-$3');\n      if (dates[1]) {\n        exif.modifyDate = dates[1].replace(/(\\d{4}):(\\d{2}):(\\d{2})/,'$1-$2-$3');\n        exif.wasEdited  = dates[0] !== dates[1];\n      }\n      exif.gpsFound = chunk.includes('GPS');\n      for (const s of printable) {\n        for (const ai of AI_TOOLS) {\n          if (s.toLowerCase().includes(ai.toLowerCase())) { exif.software=ai; break; }\n        }\n        if (exif.software) break;\n      }\n      for (const s of printable) {\n        for (const cam of CAMERAS) {\n          if (s.toLowerCase().includes(cam.toLowerCase()) && !exif.make) { exif.make=s.trim().substring(0,40); }\n        }\n      }\n    }\n  }\n  if (isPng) {\n    exif.fileType = 'PNG';\n    const str = bytes.toString('binary');\n    for (const ai of AI_TOOLS) { if (str.includes(ai)) { exif.software=ai; exif.hasExif=true; break; } }\n    if (str.includes('Steps:')||str.includes('Sampler:')||str.includes('parameters')) {\n      if (!exif.software) exif.software='AI Generator (SD metadata)';\n      exif.hasExif = true;\n    }\n  }\n} catch(e) { exif.parseError = e.message; }\n\nconst currentYear = new Date().getFullYear();\nlet exifAgeWarning = null;\nlet exifInsight = 'No EXIF data — likely screenshot or downloaded.';\n\nif (exif.software) {\n  exifInsight = `🚨 AI SOFTWARE IN METADATA: \"${exif.software}\"`;\n} else if (exif.wasEdited) {\n  exifInsight = `⚠️ File modified after creation. Created: ${exif.dateTimeOriginal} | Modified: ${exif.modifyDate}`;\n} else if (exif.dateTimeOriginal) {\n  const yr = parseInt(exif.dateTimeOriginal.substring(0,4));\n  if (!isNaN(yr) && yr < currentYear-2) {\n    exifAgeWarning = `Photo taken in ${yr} — ${currentYear-yr} years ago.`;\n    exifInsight = `⚠️ ${exifAgeWarning}`;\n  } else {\n    exifInsight = `Photo taken: ${exif.dateTimeOriginal}${exif.make?' | Camera: '+exif.make:''}`;\n  }\n} else if (exif.hasExif) {\n  exifInsight = `EXIF found${exif.make?' | Camera: '+exif.make:''} | No date recorded.`;\n}\n\nreturn [{\n  json: { base64, mimeType, fileName, caption, claimDate, exif, exifAgeWarning, exifInsight, currentYear },\n  binary: { data: { ...field } }\n}];"
+            },
+            "id": "ff49398b-b022-4d33-a818-4563c8cd6e58",
+            "name": "📦 Extract Base64 + EXIF",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                -3420,
+                -80
+            ]
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "https://router.huggingface.co/hf-inference/models/Wvolf/ViT_Deepfake_Detection",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "Bearer Your Hugging Face Token"
+                        },
+                        {
+                            "name": "Content-Type",
+                            "value": "application/octet-stream"
+                        },
+                        {
+                            "name": "x-wait-for-model",
+                            "value": "true"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "contentType": "binaryData",
+                "inputDataFieldName": "data",
+                "options": {}
+            },
+            "id": "b8c13a46-41a1-4935-a23a-72d0d36a66b1",
+            "name": "🤖 Wvolf — Deepfake",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                -3200,
+                -80
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "const wvolfRaw = $input.item.json;\nconst prev = $('📦 Extract Base64 + EXIF').first();\n\nlet deepfakeScore = 50;\n\n// Handle BOTH: single object {label, score} OR array [{label,score}]\nconst entries = Array.isArray(wvolfRaw) ? wvolfRaw : [wvolfRaw];\n\nconst fake = entries.find(r => r.label?.toLowerCase() === 'fake');\nconst real = entries.find(r => r.label?.toLowerCase() === 'real');\n\nif (fake) deepfakeScore = Math.round(fake.score * 100);\nelse if (real) deepfakeScore = Math.round((1 - real.score) * 100);\nelse deepfakeScore = -1;\n\nreturn [{\n  json: { ...prev.json, deepfakeScore },\n  binary: prev.binary\n}];"
+            },
+            "id": "fe11e08c-484f-4eba-b674-35b89c88a2ed",
+            "name": "💾 Save Wvolf Score",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                -2980,
+                -80
+            ]
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "https://router.huggingface.co/hf-inference/models/dima806/ai_vs_real_image_detection",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "Bearer Your Hugging Face Token"
+                        },
+                        {
+                            "name": "Content-Type",
+                            "value": "application/octet-stream"
+                        },
+                        {
+                            "name": "x-wait-for-model",
+                            "value": "true"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "contentType": "binaryData",
+                "inputDataFieldName": "data",
+                "options": {}
+            },
+            "id": "c9efdcb7-0145-4a5b-985f-dba42fbca72e",
+            "name": "🖼️ dima806 — AI Gen",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                -2760,
+                -80
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "const dima806Raw = $input.item.json;\nconst prev = $('💾 Save Wvolf Score').first();\n\nlet aiGenScore = 50;\n\n// Handle BOTH: single object OR array\nconst entries = Array.isArray(dima806Raw) ? dima806Raw : [dima806Raw];\n\nconst fake = entries.find(r => r.label?.toUpperCase() === 'FAKE');\nconst real = entries.find(r => r.label?.toUpperCase() === 'REAL');\n\nif (fake) aiGenScore = Math.round(fake.score * 100);\nelse if (real) aiGenScore = Math.round((1 - real.score) * 100);\nelse aiGenScore = -1;\n\nreturn [{\n  json: { ...prev.json, aiGenScore },\n  binary: prev.binary\n}];"
+            },
+            "id": "cca75688-bf53-452a-b63b-e5bfee8c67c2",
+            "name": "💾 Save dima806 Score",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                -2540,
+                -80
+            ]
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "https://api.imgbb.com/1/upload",
+                "sendQuery": true,
+                "queryParameters": {
+                    "parameters": [
+                        {
+                            "name": "key",
+                            "value": "Your ImgBB Key"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "contentType": "multipart-form-data",
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "image",
+                            "value": "={{ $json.base64 }}"
+                        },
+                        {
+                            "name": "name",
+                            "value": "={{ $json.fileName }}"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "id": "25135125-ab99-45d3-ab56-b63c37e2443f",
+            "name": "🌐 imgbb — Public URL",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                -2320,
+                -80
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "// Save imgbb URL, carry everything forward\nconst imgbbRaw = $input.item.json;\nconst prev = $('💾 Save dima806 Score').first();\n\nconst imageUrl = imgbbRaw?.data?.url || null;\nif (!imageUrl) throw new Error('imgbb upload failed. Check your IMGBB_KEY_HERE value.');\n\nreturn [{\n  json: { ...prev.json, imageUrl }\n}];"
+            },
+            "id": "11726f88-27e1-42fb-a110-e40fdfafb487",
+            "name": "💾 Save imgbb URL",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                -2100,
+                -80
+            ]
+        },
+        {
+            "parameters": {
+                "url": "https://serpapi.com/search",
+                "sendQuery": true,
+                "queryParameters": {
+                    "parameters": [
+                        {
+                            "name": "engine",
+                            "value": "google_reverse_image"
+                        },
+                        {
+                            "name": "image_url",
+                            "value": "={{ $json.imageUrl }}"
+                        },
+                        {
+                            "name": "api_key",
+                            "value": "Your SerpAPI Key"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "id": "c4a87e6e-9e9f-4337-8505-a994addb2d70",
+            "name": "🔍 SerpAPI — Reverse Search",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                -1880,
+                -80
+            ],
+            "onError": "continueRegularOutput"
+        },
+        {
+            "parameters": {
+                "jsCode": "// ── All data is now in one place — build Gemini prompt ──\nconst serpRaw = $input.item.json;\nconst prev = $('💾 Save imgbb URL').first().json;\n\nconst { base64, mimeType, fileName, caption, claimDate, exif, exifAgeWarning, exifInsight, currentYear, deepfakeScore, aiGenScore } = prev;\n\n// ── Parse SerpAPI (graceful — handles 503, error objects, empty results) ──\n// When SerpAPI fails + \"Continue on Error\" is set, n8n passes error object\n// We safely fall back to empty results in all failure cases\nconst imageResults = Array.isArray(serpRaw?.image_results) ? serpRaw.image_results : [];\nconst totalResults = imageResults.length;\nconst topSources = imageResults.slice(0,5).map(r => ({\n  source:  r.source || r.link || 'Unknown',\n  title:   r.title  || 'Unknown',\n  snippet: r.snippet || ''\n}));\nconst allText = imageResults.map(r=>(r.snippet||'')+' '+(r.title||'')).join(' ');\nconst yearsFound = [...new Set((allText.match(/\\b(19|20)\\d{2}\\b/g)||[]))].sort();\nconst earliestYear = yearsFound.length > 0 ? parseInt(yearsFound[0]) : null;\n\n// ── Context strings for Gemini ──\nconst hfContext = [\n  deepfakeScore >= 0\n    ? `Deepfake Face Classifier (Wvolf ViT, 98.7% lab accuracy): ${deepfakeScore}% probability FAKE`\n    : 'Deepfake classifier: unavailable',\n  aiGenScore >= 0\n    ? `AI Generation Classifier (dima806 ViT, 98.25% lab accuracy): ${aiGenScore}% probability AI-GENERATED`\n    : 'AI generation classifier: unavailable'\n].join('\\n');\n\nconst exifContext = exif.software\n  ? `STRONG SIGNAL — AI software in EXIF: \"${exif.software}\"`\n  : exif.dateTimeOriginal\n    ? `Date taken: ${exif.dateTimeOriginal}${exif.make?' | Camera: '+exif.make:''}${exif.wasEdited?' | FILE EDITED AFTER CREATION':''}`\n    : 'No EXIF metadata (screenshot or stripped)';\n\nconst serpContext = earliestYear\n  ? `Found ${totalResults} prior web appearances. Earliest year: ${earliestYear}. Top sources: ${topSources.slice(0,3).map(s=>s.source).join(', ')}`\n  : totalResults>0\n    ? `Found ${totalResults} appearances but no specific date found`\n    : serpRaw?.error\n      ? `Reverse image search unavailable (${serpRaw.error})`\n      : 'No prior appearances found in reverse image search';\n\nconst claimContext = (caption||claimDate)\n  ? `Caption: \"${caption||'none'}\" | Claimed date: \"${claimDate||'none'}\"`\n  : 'No caption or date claim provided';\n\nconst prompt = `You are an expert forensic image analyst. Carefully analyze this image.\n\n═══ SIGNALS FROM OTHER DETECTION SYSTEMS ═══\n${hfContext}\nEXIF: ${exifContext}\nReverse Search: ${serpContext}\nUser Claim: ${claimContext}\n\n═══ YOUR FORENSIC TASK ═══\nForm your OWN independent visual judgment. Do NOT just repeat the scores above.\nThen state whether you AGREE or DISAGREE with the classifiers and why.\n\n1. DEEPFAKE SIGNS — check for:\n- Face boundary artifacts (blurring/halos at jaw/hairline)\n- Skin tone mismatch at face/neck edges\n- Unnatural eye reflections or glassy stare\n- Hair edge artifacts or pixelation at boundary\n- Lighting mismatch between face and background\n- Stiff or unnatural facial expression\n\n2. AI GENERATION SIGNS — check for:\n- Skin texture too smooth, waxy, or plastic-like\n- Wrong number of fingers or morphed hands\n- Blurry, illegible, or hallucinated text in image\n- Unnaturally perfect facial symmetry\n- Dreamlike background or unnatural bokeh\n- Repeated background patterns\n- Inconsistent or impossible light sources\n\n3. GENERAL INCONSISTENCIES — check for:\n- Shadows that do not match light direction\n- Objects that look copy-pasted\n- Perspective or scale errors\n- Elements that defy physics\n\n4. CONTEXT CLUES — check for:\n- Any visible text (news tickers, signs, watermarks, dates)?\n- What technology era does this suggest (phone models, car models, fashion)?\n- Does anything contradict the claimed date \"${claimDate||'not provided'}\"?\n\nReturn ONLY raw JSON. No markdown. No backticks. Nothing else:\n{\n  \"deepfake_visual\": { \"score\": <0-100>, \"reasoning\": \"<what you specifically saw or did not see>\" },\n  \"ai_gen_visual\":   { \"score\": <0-100>, \"reasoning\": \"<what you specifically saw or did not see>\" },\n  \"inconsistencies\": [\"<specific finding 1>\", \"<specific finding 2>\"],\n  \"context_clues\":   [\"<visible text, date, tech, or era clue>\"],\n  \"agrees_with_classifiers\": <true or false>,\n  \"disagreement_reason\": \"<if false, explain why>\",\n  \"gemini_verdict\": \"<REAL | DEEPFAKE | AI_GENERATED | SUSPICIOUS | INCONCLUSIVE>\",\n  \"confidence\": <0-100>,\n  \"summary\": \"<2-3 sentence forensic conclusion in plain English>\"\n}`;\n\nreturn [{\n  json: {\n    base64, mimeType, fileName, caption, claimDate,\n    exif, exifAgeWarning, exifInsight, currentYear,\n    deepfakeScore, aiGenScore,\n    earliestYear, topSources, totalResults,\n    geminiPrompt: prompt\n  }\n}];"
+            },
+            "id": "d13daa8d-0459-4861-bd1d-e8221d074e20",
+            "name": "🧠 Prepare Gemini Context",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                -1660,
+                -80
+            ]
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "=https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=Your Gemini API Key",
+                "sendBody": true,
+                "contentType": "raw",
+                "rawContentType": "application/json",
+                "body": "={\n  \"contents\": [{\n    \"parts\": [\n      { \"inline_data\": { \"mime_type\": \"{{ $json.mimeType }}\", \"data\": \"{{ $json.base64 }}\" } },\n      { \"text\": {{ JSON.stringify($json.geminiPrompt) }} }\n    ]\n  }]\n}",
+                "options": {}
+            },
+            "id": "7a174066-dfb2-4fd0-88a0-76a34ee0b804",
+            "name": "✨ Gemini — Forensic Analysis",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                -1440,
+                -80
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "const geminiRaw = $input.item.json;\nconst prev = $('🧠 Prepare Gemini Context').first().json;\n\nconst { deepfakeScore, aiGenScore, earliestYear, topSources, totalResults, exif, exifAgeWarning, currentYear, claimDate, caption, fileName, exifInsight } = prev;\n\n// ── Parse Gemini JSON ──\nconst gText = geminiRaw.candidates?.[0]?.content?.parts?.[0]?.text || '';\nlet g;\ntry {\n  g = JSON.parse(gText.replace(/```json|```/g,'').trim());\n} catch(e) {\n  g = {\n    deepfake_visual:  { score:50, reasoning:'Gemini parse failed — using classifier scores only.' },\n    ai_gen_visual:    { score:50, reasoning:'Gemini parse failed — using classifier scores only.' },\n    inconsistencies:  ['Gemini analysis unavailable. Manual review required.'],\n    context_clues:    [],\n    agrees_with_classifiers: true,\n    disagreement_reason: '',\n    gemini_verdict:   'INCONCLUSIVE',\n    confidence:       20,\n    summary:          'Automated forensic analysis was inconclusive. Manual review required.'\n  };\n}\n\n// ── Combine HF + Gemini scores (50/50) ──\nlet combinedDeepfake = deepfakeScore >= 0\n  ? Math.round((deepfakeScore * 0.5) + (g.deepfake_visual.score * 0.5))\n  : g.deepfake_visual.score;\n\nlet combinedAiGen = aiGenScore >= 0\n  ? Math.round((aiGenScore * 0.5) + (g.ai_gen_visual.score * 0.5))\n  : g.ai_gen_visual.score;\n\n// EXIF hard override\nif (exif.software) combinedAiGen = Math.max(combinedAiGen, 92);\n\n// ── Timeliness Score ──\nlet timelyScore = 70;\nlet timelyReasoning = 'No reverse search results to evaluate timeline.';\nlet serpVerdict = 'NO_DATA';\n\nlet claimYear = null;\nif (claimDate) { const m=claimDate.match(/\\b(19|20)\\d{2}\\b/); if(m) claimYear=parseInt(m[0]); }\n\nif (earliestYear) {\n  const ageYears = currentYear - earliestYear;\n  if (claimYear) {\n    const diff = claimYear - earliestYear;\n    if (Math.abs(diff)<=1)  { timelyScore=92; serpVerdict='CLAIM_MATCHES';  timelyReasoning=`✅ Claimed (${claimYear}) matches earliest found (${earliestYear}).`; }\n    else if (diff>1)        { timelyScore=5;  serpVerdict='CLAIM_MISMATCH'; timelyReasoning=`🚨 MISMATCH: Claimed ${claimYear} but image first appeared online in ${earliestYear} — ${diff} years earlier.`; }\n    else                    { timelyScore=60; serpVerdict='MINOR_MISMATCH'; timelyReasoning=`Minor gap: claimed ${claimYear}, earliest found ${earliestYear}.`; }\n  } else {\n    if (ageYears>=3)      { timelyScore=12; serpVerdict='LIKELY_OLD';    timelyReasoning=`Image from ${earliestYear} — ${ageYears} years ago. HIGH risk of reshare.`; }\n    else if (ageYears>=1) { timelyScore=48; serpVerdict='POSSIBLY_OLD';  timelyReasoning=`First appeared ~${earliestYear}. May be reshared.`; }\n    else                  { timelyScore=88; serpVerdict='LIKELY_RECENT'; timelyReasoning=`Appears recent (first found ${earliestYear}).`; }\n  }\n  timelyReasoning += ` Found ${totalResults} total appearances.`;\n} else if (totalResults>0) {\n  timelyScore=60; serpVerdict='UNVERIFIED'; timelyReasoning=`Found ${totalResults} appearances but no date determined.`;\n} else {\n  timelyScore=70; serpVerdict='NO_PRIOR_RECORD'; timelyReasoning='No prior appearances found. Image may be new or not indexed.';\n}\n\nif (exifAgeWarning) { timelyScore=Math.min(timelyScore,18); timelyReasoning=exifAgeWarning+' '+timelyReasoning; }\n\n// ── Formula ──\nconst ai_real     = 100 - combinedAiGen;\nconst no_deepfake = 100 - combinedDeepfake;\nconst timely      = timelyScore;\nconst overall     = Math.round((ai_real*0.35)+(no_deepfake*0.35)+(timely*0.30));\nconst flagged     = overall < 75;\n\n// ── Final Verdict ──\nlet finalVerdict, alertLevel, verdictEmoji;\nif      (exif.software)                                              { finalVerdict='AI GENERATED — CONFIRMED BY METADATA'; verdictEmoji='🤖'; alertLevel='HIGH'; }\nelse if (combinedAiGen>=80)                                          { finalVerdict='AI GENERATED';                         verdictEmoji='🤖'; alertLevel='HIGH'; }\nelse if (combinedDeepfake>=78)                                       { finalVerdict='DEEPFAKE DETECTED';                    verdictEmoji='👤'; alertLevel='HIGH'; }\nelse if (serpVerdict==='CLAIM_MISMATCH'||serpVerdict==='LIKELY_OLD') { finalVerdict='MISCLAIMED / OLD PHOTO';               verdictEmoji='⏳'; alertLevel='HIGH'; }\nelse if (overall<40)                                                 { finalVerdict='ALMOST CERTAINLY FAKE';                verdictEmoji='🔴'; alertLevel='HIGH'; }\nelse if (overall<75)                                                 { finalVerdict='SUSPICIOUS — NEEDS REVIEW';            verdictEmoji='⚠️'; alertLevel='MEDIUM'; }\nelse if (overall>=85)                                                { finalVerdict='LIKELY REAL & TIMELY';                 verdictEmoji='✅'; alertLevel='LOW'; }\nelse                                                                 { finalVerdict='PROBABLY REAL';                        verdictEmoji='✅'; alertLevel='LOW'; }\n\n// ── Red Flags ──\nconst redFlags = [\n  exif.software                  && `🤖 EXIF contains AI software: \"${exif.software}\"`,\n  exifAgeWarning                 && `📅 ${exifAgeWarning}`,\n  exif.wasEdited                 && `✏️ File modified after creation (${exif.modifyDate})`,\n  !exif.hasExif                  && `🗂️ No EXIF — screenshot or stripped`,\n  serpVerdict==='CLAIM_MISMATCH' && `🚨 Claimed ${claimYear} ≠ earliest found ${earliestYear}`,\n  serpVerdict==='LIKELY_OLD'     && `⏳ Image from ${earliestYear} — ${currentYear-earliestYear} years ago`,\n  combinedDeepfake>=75           && `👤 Deepfake: ${combinedDeepfake}% (HF:${deepfakeScore}% | Gemini:${g.deepfake_visual.score}%)`,\n  combinedAiGen>=75              && `🤖 AI-gen: ${combinedAiGen}% (HF:${aiGenScore}% | Gemini:${g.ai_gen_visual.score}%)`,\n  !g.agrees_with_classifiers     && `⚡ Gemini disagrees: ${g.disagreement_reason}`\n].filter(Boolean);\n\nreturn [{\n  json: {\n    fileName, caption, claimDate,\n    finalVerdict, verdictEmoji, alertLevel,\n    formula: { ai_real, no_deepfake, timely, overall, flagged, calculation:`(${ai_real}×0.35)+(${no_deepfake}×0.35)+(${timely}×0.30)=${overall}%` },\n    scores: {\n      deepfake:     { hf:deepfakeScore,  gemini:g.deepfake_visual.score, combined:combinedDeepfake },\n      ai_generated: { hf:aiGenScore,     gemini:g.ai_gen_visual.score,   combined:combinedAiGen },\n      timely: timelyScore\n    },\n    reasoning: {\n      deepfake:       g.deepfake_visual.reasoning,\n      ai_generated:   g.ai_gen_visual.reasoning,\n      timeline:       timelyReasoning,\n      gemini_summary: g.summary\n    },\n    redFlags,\n    inconsistencies:       g.inconsistencies   || [],\n    contextClues:          g.context_clues     || [],\n    geminiVerdict:         g.gemini_verdict,\n    geminiConfidence:      g.confidence,\n    agreesWithClassifiers: g.agrees_with_classifiers,\n    disagreementReason:    g.disagreement_reason || null,\n    reverseSearch: { totalResults, earliestYear, serpVerdict, topSources },\n    exif: {\n      hasExif:   exif.hasExif, fileType: exif.fileType,\n      dateTaken: exif.dateTimeOriginal, modifyDate: exif.modifyDate,\n      wasEdited: exif.wasEdited, camera: exif.make,\n      software:  exif.software, gpsFound: exif.gpsFound,\n      insight:   exifInsight\n    },\n    analyzedAt: new Date().toISOString()\n  }\n}];"
+            },
+            "id": "23400f51-649d-44a8-b13e-c1ceff317cd2",
+            "name": "⚖️ Verdict Engine",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                -1220,
+                -80
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "const d = $input.item.json;\n\nconst P = {\n  HIGH:   { bg:'#fff5f5', border:'#fc8181', text:'#c53030', dot:'#e53e3e' },\n  MEDIUM: { bg:'#fffbeb', border:'#f6ad55', text:'#c05621', dot:'#dd6b20' },\n  LOW:    { bg:'#f0fff4', border:'#68d391', text:'#276749', dot:'#38a169' }\n};\nconst p = P[d.alertLevel] || P.MEDIUM;\n\n// Score dot indicator\nconst dot = (score) => score >= 70 ? '🔴' : score >= 40 ? '🟡' : '🟢';\n\n// Score row — clean single line\nconst scoreRow = (label, score) => `\n  <tr>\n    <td style=\"padding:10px 16px;font-size:15px;color:#2d3748;font-weight:600\">${label}</td>\n    <td style=\"padding:10px 16px;text-align:right\">\n      <span style=\"font-size:15px;font-weight:800;color:#2d3748\">${score}%</span>\n      &nbsp;${dot(score)}\n    </td>\n  </tr>`;\n\n// Red flag row\nconst flagRow = (flag) => `\n  <tr>\n    <td style=\"padding:6px 0;font-size:14px;color:#c53030\">\n      ${flag}\n    </td>\n  </tr>`;\n\nconst now = new Date(d.analyzedAt);\nconst dateStr = now.toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' });\n\n// EXIF one-liner\nconst exifLine = d.exif.software\n  ? `🚨 AI software detected in metadata: \"${d.exif.software}\"`\n  : d.exif.dateTaken\n    ? `📷 Taken: ${d.exif.dateTaken}${d.exif.camera ? ' · ' + d.exif.camera : ''}${d.exif.wasEdited ? ' · ⚠️ Edited after creation' : ''}`\n    : d.exif.hasExif\n      ? `📷 EXIF found · No date recorded`\n      : `📷 No EXIF data · Likely screenshot or downloaded`;\n\n// Reverse search one-liner\nconst serpLine = d.reverseSearch.earliestYear\n  ? `🔍 Found ${d.reverseSearch.totalResults} prior appearance(s) · Earliest: ${d.reverseSearch.earliestYear}`\n  : d.reverseSearch.totalResults > 0\n    ? `🔍 Found ${d.reverseSearch.totalResults} prior appearance(s) · No date determined`\n    : `🔍 No prior appearances found online`;\n\n// Claim block (only if provided)\nconst claimLine = (d.caption || d.claimDate)\n  ? `<div style=\"background:#ebf8ff;border-left:4px solid #63b3ed;padding:12px 16px;margin-bottom:20px;border-radius:0 8px 8px 0\">\n      <p style=\"font-size:12px;font-weight:700;color:#2b6cb0;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.5px\">Submitted Claim</p>\n      ${d.caption   ? `<p style=\"font-size:14px;color:#2c5282;margin-bottom:2px\">📝 ${d.caption}</p>` : ''}\n      ${d.claimDate ? `<p style=\"font-size:14px;color:#2c5282\">📅 Claimed date: ${d.claimDate}</p>` : ''}\n    </div>`\n  : '';\n\nconst html = `<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"UTF-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <style>\n    * { box-sizing:border-box; margin:0; padding:0; }\n    body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f2f5; }\n    .wrap { max-width: 560px; margin: 24px auto; }\n    table { width:100%; border-collapse:collapse; }\n  </style>\n</head>\n<body>\n<div class=\"wrap\">\n\n  <!-- HEADER -->\n  <div style=\"background:linear-gradient(135deg,#0f0c29,#302b63);padding:28px 32px;border-radius:12px 12px 0 0\">\n    <p style=\"color:#a0aec0;font-size:11px;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px\">Powered by</p>\n    <h1 style=\"color:#ffffff;font-size:26px;font-weight:900;letter-spacing:-0.5px\">सत्यता</h1>\n    <p style=\"color:#a0aec0;font-size:12px;margin-top:6px\">${dateStr} &nbsp;·&nbsp; ${d.fileName}</p>\n  </div>\n\n  <!-- VERDICT -->\n  <div style=\"background:${p.bg};border:2px solid ${p.border};padding:22px 32px;margin-top:2px\">\n    <h2 style=\"color:${p.text};font-size:22px;font-weight:900\">${d.verdictEmoji} ${d.finalVerdict}</h2>\n    <div style=\"display:flex;align-items:center;gap:16px;margin-top:14px\">\n      <div style=\"text-align:center\">\n        <div style=\"font-size:42px;font-weight:900;color:${p.dot};line-height:1\">${d.formula.overall}<span style=\"font-size:18px\">%</span></div>\n        <div style=\"font-size:11px;color:${p.text};margin-top:4px;font-weight:600\">TRUST SCORE ${d.formula.flagged ? '🚩' : '✅'}</div>\n      </div>\n      <div style=\"flex:1;border-left:2px solid ${p.border};padding-left:16px\">\n        <p style=\"font-size:13px;color:${p.text};line-height:1.6\">${d.reasoning.gemini_summary}</p>\n      </div>\n    </div>\n  </div>\n\n  <!-- BODY -->\n  <div style=\"background:#ffffff;padding:24px 32px\">\n\n    ${claimLine}\n\n    <!-- SCORES -->\n    <p style=\"font-size:11px;font-weight:700;color:#a0aec0;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px\">Scores</p>\n    <div style=\"border:1px solid #edf2f7;border-radius:8px;overflow:hidden;margin-bottom:20px\">\n      <table>\n        ${scoreRow('👤 Deepfake', d.scores.deepfake.combined)}\n        <tr><td colspan=\"2\" style=\"height:1px;background:#edf2f7;padding:0\"></td></tr>\n        ${scoreRow('🤖 AI Generated', d.scores.ai_generated.combined)}\n        <tr><td colspan=\"2\" style=\"height:1px;background:#edf2f7;padding:0\"></td></tr>\n        ${scoreRow('⏳ Timely / Context', d.scores.timely)}\n      </table>\n    </div>\n\n    <!-- RED FLAGS -->\n    ${d.redFlags.length > 0 ? `\n    <p style=\"font-size:11px;font-weight:700;color:#a0aec0;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px\">Red Flags</p>\n    <div style=\"border:1px solid #fc8181;border-radius:8px;padding:4px 16px;background:#fff5f5;margin-bottom:20px\">\n      <table>\n        ${d.redFlags.map(f => flagRow(f)).join('')}\n      </table>\n    </div>` : `\n    <div style=\"border:1px solid #68d391;border-radius:8px;padding:12px 16px;background:#f0fff4;margin-bottom:20px\">\n      <p style=\"font-size:14px;color:#276749\">✅ No red flags detected</p>\n    </div>`}\n\n    <!-- EVIDENCE -->\n    <p style=\"font-size:11px;font-weight:700;color:#a0aec0;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px\">Evidence</p>\n    <div style=\"border:1px solid #edf2f7;border-radius:8px;padding:12px 16px;margin-bottom:6px;background:#f7fafc\">\n      <p style=\"font-size:14px;color:#4a5568\">${exifLine}</p>\n    </div>\n    <div style=\"border:1px solid #edf2f7;border-radius:8px;padding:12px 16px;background:#f7fafc;margin-bottom:20px\">\n      <p style=\"font-size:14px;color:#4a5568\">${serpLine}</p>\n    </div>\n\n    <!-- DISCLAIMER -->\n    <p style=\"font-size:12px;color:#a0aec0;line-height:1.6;border-top:1px solid #edf2f7;padding-top:16px\">\n      ⚠️ Automated analysis. Not 100% accurate — always verify manually for critical decisions.\n    </p>\n\n  </div>\n\n  <!-- FOOTER -->\n<div style=\"background:#f7fafc;padding:16px 32px;border-radius:0 0 12px 12px;border-top:1px solid #edf2f7\">\n  <p style=\"font-size:14px;font-weight:900;color:#2d3748;margin-bottom:4px\">सत्यता</p>\n  <p style=\"font-size:11px;color:#a0aec0\">Powered by &nbsp;Wvolf &nbsp;·&nbsp; dima806 &nbsp;·&nbsp; Gemini &nbsp;·&nbsp; SerpAPI &nbsp;·&nbsp; EXIF</p>\n</div>\n</div>\n</body>\n</html>`;\n\nreturn [{\n  json: {\n    html,\n    subject: `${d.verdictEmoji} सत्यता: ${d.finalVerdict} [${d.formula.overall}%] — ${d.fileName}`,\n    postmanPayload: {\n      status: 'success',\n      file: d.fileName,\n      claim: { caption: d.caption, claimed_date: d.claimDate },\n      verdict: { label: d.finalVerdict, emoji: d.verdictEmoji, alert_level: d.alertLevel, overall_trust_score: d.formula.overall },\n      scores: {\n        deepfake:     { hf: d.scores.deepfake.hf,     gemini: d.scores.deepfake.gemini,     combined: d.scores.deepfake.combined },\n        ai_generated: { hf: d.scores.ai_generated.hf, gemini: d.scores.ai_generated.gemini, combined: d.scores.ai_generated.combined },\n        timeliness:   d.scores.timely\n      },\n      formula:   d.formula,\n      red_flags: d.redFlags,\n      evidence: {\n        exif:              d.exif,\n        reverse_search:    d.reverseSearch,\n        gemini_reasoning:  d.reasoning,\n        gemini_verdict:    d.geminiVerdict,\n        gemini_confidence: d.geminiConfidence,\n        inconsistencies:   d.inconsistencies,\n        context_clues:     d.contextClues\n      },\n      analyzed_at: d.analyzedAt\n    }\n  }\n}];"
+            },
+            "id": "38cd9456-034a-48c1-aca8-05d3da219087",
+            "name": "🎨 Build Email + JSON",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                -1000,
+                -80
+            ]
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "https://api.resend.com/emails",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "Bearer Your Resend Key"
+                        },
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "contentType": "raw",
+                "rawContentType": "application/json",
+                "body": "={\n  \"from\": \"Detector <onboarding@resend.dev>\",\n  \"to\": [\"addyour@email.com\"],\n  \"subject\": {{ JSON.stringify($json.subject) }},\n  \"html\": {{ JSON.stringify($json.html) }}\n}",
+                "options": {}
+            },
+            "id": "3bc4bff3-574b-4b08-83bf-e96736184173",
+            "name": "📧 Send via Resend",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                -780,
+                -180
+            ]
+        },
+        {
+            "parameters": {
+                "respondWith": "json",
+                "responseBody": "={{ JSON.stringify($('🎨 Build Email + JSON').item.json.postmanPayload) }}",
+                "options": {}
+            },
+            "id": "e677ea70-f896-4fa9-af03-53cf47dfe153",
+            "name": "✅ Respond to Postman",
+            "type": "n8n-nodes-base.respondToWebhook",
+            "typeVersion": 1,
+            "position": [
+                -780,
+                20
+            ]
+        }
+    ],
+    "pinData": {},
+    "connections": {
+        "📥 Receive Image + Claims": {
+            "main": [
+                [
+                    {
+                        "node": "📦 Extract Base64 + EXIF",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "📦 Extract Base64 + EXIF": {
+            "main": [
+                [
+                    {
+                        "node": "🤖 Wvolf — Deepfake",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "🤖 Wvolf — Deepfake": {
+            "main": [
+                [
+                    {
+                        "node": "💾 Save Wvolf Score",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "💾 Save Wvolf Score": {
+            "main": [
+                [
+                    {
+                        "node": "🖼️ dima806 — AI Gen",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "🖼️ dima806 — AI Gen": {
+            "main": [
+                [
+                    {
+                        "node": "💾 Save dima806 Score",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "💾 Save dima806 Score": {
+            "main": [
+                [
+                    {
+                        "node": "🌐 imgbb — Public URL",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "🌐 imgbb — Public URL": {
+            "main": [
+                [
+                    {
+                        "node": "💾 Save imgbb URL",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "💾 Save imgbb URL": {
+            "main": [
+                [
+                    {
+                        "node": "🔍 SerpAPI — Reverse Search",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "🔍 SerpAPI — Reverse Search": {
+            "main": [
+                [
+                    {
+                        "node": "🧠 Prepare Gemini Context",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "🧠 Prepare Gemini Context": {
+            "main": [
+                [
+                    {
+                        "node": "✨ Gemini — Forensic Analysis",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "✨ Gemini — Forensic Analysis": {
+            "main": [
+                [
+                    {
+                        "node": "⚖️ Verdict Engine",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "⚖️ Verdict Engine": {
+            "main": [
+                [
+                    {
+                        "node": "🎨 Build Email + JSON",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "🎨 Build Email + JSON": {
+            "main": [
+                [
+                    {
+                        "node": "📧 Send via Resend",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "✅ Respond to Postman",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "active": false,
+    "settings": {
+        "executionOrder": "v1"
+    },
+    "versionId": "1255708f-635e-4cf5-a673-2e04c19bda5b",
+    "meta": {
+        "instanceId": "e06ef98fd9365ab0b3f81aa58a48d9e47e938f64633addeaa8f0be8df310b08f"
+    },
+    "id": "s9rpHNhStSMPamgU",
+    "tags": []
+}
